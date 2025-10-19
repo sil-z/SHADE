@@ -19,7 +19,6 @@ export class CurveNode {
     // 如果是控制点，传入时必须附带后继点，即其对应主节点
     // 主节点必然先于控制点创建
 
-    lastCurve: SVGSVGElement | null = null;
     nextCurve: SVGSVGElement | null = null;
     control1_conn: SVGSVGElement | null = null;
     control2_conn: SVGSVGElement | null = null;
@@ -40,6 +39,7 @@ export class CurveNode {
         this.nextOnCurve = params.nextOnCurve;
     }
 
+    // 移动一个手柄时同步另一个
     set_both_control(params: {
         one_control: SVGSVGElement;
         control_mode: Number; // 如果为 2 则覆盖本地设置
@@ -61,6 +61,7 @@ export class CurveNode {
         }
     }
 
+    // 主节点移动时，进行手柄同步等相关设置
     move_together(params: {
         dx: number;
         dy: number;
@@ -189,6 +190,9 @@ export class CurveNode {
                 }
             }
         }
+
+        const curve_manager = CurveManager.getInstance();
+        curve_manager.findCurveByDom(this.main_node)?.update_path(container);
     }
 }
 
@@ -196,6 +200,8 @@ export class CurveNodeManager {
     startNode: CurveNode | null = null;
     id: string;
     class_id: string;
+    path_d: string = "";
+    curve: SVGSVGElement | null = null;
 
     constructor(params: {
         id: string;
@@ -300,6 +306,29 @@ export class CurveNodeManager {
         }
 
         return true;
+    }
+
+    update_path(container: HTMLElement) {
+        this.path_d = "";
+        let this_node = this.startNode;
+        while(this_node != null && this_node.nextCurve != null) {
+            let one_path_d = this_node.nextCurve.querySelector("path")!.getAttribute("d")!;
+            if(this_node !== this.startNode)
+                one_path_d = removeLeadingM(one_path_d);
+            this_node.nextCurve.style.contentVisibility = "hidden";
+            this.path_d += one_path_d;
+            this.path_d += " ";
+            this_node = this_node.nextOnCurve;
+        }
+
+        if(this.curve === null) {
+            this.curve = createPathSVG(this.path_d, 1, "black", true, "rgba(127,127,127,0.5)", container);
+        } else {
+            const path = this.curve.querySelector("path");
+            if(path) {
+                path.setAttribute("d", this.path_d);
+            }
+        }
     }
 }
 
@@ -414,7 +443,7 @@ export function createLineSVG(
     svg.style.pointerEvents = "none"; // 避免遮挡交互
     svg.setAttribute("width", `${window.screen.width}px`);
     svg.setAttribute("height", `${window.screen.height}px`);
-    svg.style.zIndex = "25";
+    svg.style.zIndex = "50";
     // svg.style.transform = `translate(${-offset[0]}px, ${-offset[1]}px)`;
     svg.style.overflow = "visible";
 
@@ -480,3 +509,55 @@ export function createBezierSVG(
 
 
 
+export function createPathSVG(
+    d: string,                   // 路径描述字符串
+    strokeWidth: number,         // 线宽
+    strokeColor: string,         // 描边颜色
+    fill: boolean,               // 是否填充
+    fillColor: string,           // 填充颜色
+    container: HTMLElement,      // 要挂载的容器
+): SVGSVGElement {
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+
+    // 布局样式
+    svg.style.position = "absolute";
+    svg.style.left = "0";
+    svg.style.top = "0";
+    svg.style.pointerEvents = "none";
+    svg.style.zIndex = "40";
+    svg.style.overflow = "visible";
+
+    // 尺寸覆盖全屏（可根据需要调整）
+    svg.setAttribute("width", `${window.screen.width}px`);
+    svg.setAttribute("height", `${window.screen.height}px`);
+
+    // 创建 path
+    const path = document.createElementNS(svgNS, "path");
+    path.setAttribute("d", d);
+
+    // 设置填充
+    if (fill) {
+        path.setAttribute("fill", fillColor);
+    } else {
+        path.setAttribute("fill", "none");
+    }
+
+    path.setAttribute("stroke", strokeColor);
+    path.setAttribute("stroke-width", strokeWidth.toString());
+
+    // 组装与挂载
+    svg.appendChild(path);
+    container.appendChild(svg);
+
+    return svg;
+}
+
+/**
+ * 去掉路径字符串开头的 M x y，支持科学计数法
+ * @param d 路径字符串
+ */
+export function removeLeadingM(d: string): string {
+    const regex = /^\s*[Mm]\s*(-?\d+(\.\d+)?([eE][-+]?\d+)?)[ ,]+(-?\d+(\.\d+)?([eE][-+]?\d+)?)/;
+    return d.replace(regex, '');
+}

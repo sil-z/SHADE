@@ -634,9 +634,9 @@ onMounted(() => {
 
             offset = { x: offset_start.x + dx / scale, y: offset_start.y + dy / scale};
 
-            update_canvas();
-            update_ruler();
-            update_node();
+            // update_canvas();
+            // update_ruler();
+            // update_node();
 
             localStorage.setItem("ss_board_offset_x", String(offset.x));
             localStorage.setItem("ss_board_offset_y", String(offset.y));
@@ -665,30 +665,32 @@ onMounted(() => {
             }
         } else if((e.buttons & 1) !== 0 && dragging_node_b_ready === true) {
             // 按下左键时移动，正在拖动已创建的节点
+            // 包括主节点和控制手柄
             if(Math.abs(x - dragging_node_start.x) > 1 || Math.abs(y - dragging_node_start.y) > 1)
                 dragging_node_b = true;
             const dragging_node_n = curve_manager.find_node_by_curve({ main_node: dragging_node! });
             if(dragging_node_b) {
                 if(dragging_node_n!.type !== null) {
+                    // 是主节点
                     const dx = x - Number(dragging_node!.dataset.size) - parseFloat(dragging_node!.style.transform.match(/translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/)![1]);
                     const dy = y - Number(dragging_node!.dataset.size) - parseFloat(dragging_node!.style.transform.match(/translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/)![2]);
                     const new_x = x / scale, new_y = y / scale;
 
+                    //移动场上所有选中的点
                     dragging_node_n?.move_together_selected({ dx, dy, logic_dx: new_x - dragging_node_n!.x, logic_dy: new_y - dragging_node_n!.y, node_list: node_selecting });
 
                     for(const node of node_selecting) {
                         curve_manager.find_node_by_curve({ main_node: node })?.update_svg_curve(main_canvas!.value!, scale);
                     }
-                    
-
                 } else {
+                    // 是控制点
                     dragging_node!.style.transform = `translate(${x - Number(dragging_node!.dataset.size)}px, ${y - Number(dragging_node!.dataset.size)}px)`;
                     dragging_node_start = { x, y };
 
                     dragging_node_n!.x = x / scale;
                     dragging_node_n!.y = y / scale;
-                    dragging_node_n!.nextOnCurve!.update_svg_curve(main_canvas!.value!, scale);
                     dragging_node_n!.nextOnCurve!.set_both_control({ one_control: dragging_node!, control_mode: 0 });
+                    dragging_node_n!.nextOnCurve!.update_svg_curve(main_canvas!.value!, scale);
                 }
             }
         }
@@ -721,14 +723,14 @@ onMounted(() => {
             offset = { x: offset.x * (old_scale / new_scale), y: offset.y * (old_scale / new_scale)};
             scale = new_scale;
 
-            update_canvas();
-            update_ruler();
+            // update_canvas();
+            // update_ruler();
             update_node();
 
             offset = { x: offset.x + (x - x_new) / scale, y: offset.y + (y - y_new) / scale};
 
-            update_canvas();
-            update_ruler();
+            // update_canvas();
+            // update_ruler();
             update_node();
 
             localStorage.setItem("ss_board_scale", String(scale));
@@ -754,14 +756,14 @@ onMounted(() => {
             offset = { x: offset.x * (old_scale / new_scale), y: offset.y * (old_scale / new_scale)};
             scale = new_scale;
 
-            update_canvas();
-            update_ruler();
+            // update_canvas();
+            // update_ruler();
             update_node();
 
             offset = { x: offset.x + (x - x_new) / scale, y: offset.y + (y - y_new) / scale};
 
-            update_canvas();
-            update_ruler();
+            // update_canvas();
+            // update_ruler();
             update_node();
 
             localStorage.setItem("ss_board_scale", String(scale));

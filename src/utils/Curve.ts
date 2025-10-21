@@ -385,6 +385,17 @@ export class CurveNodeManager {
             }
         }
     }
+
+    save() {
+        if(this.startNode === null)
+            return;
+        let res: { cl: string; num: { num_x: number; num_y: number }[] }[] = [];
+        res.push({ cl: "M", num: [{ num_x: this.startNode.x, num_y: this.startNode.y }] });
+        let this_node: CurveNode | null = this.startNode.nextOnCurve;
+        while(this_node !== null) {
+            
+        }
+    }
 }
 
 // ---------------------- 单例 CurveManager ----------------------

@@ -1,9 +1,9 @@
 
 export type NodeType = "move" | "line" | "curve" | null;
 
-export let path_stroke_color = "rgba(0, 255, 0, 0.8)";
-export let control_ahead_color = "rgba(0, 0, 255, 0.6)";
-export let control_back_color = "rgba(255, 0, 0, 0.6)";
+export let path_stroke_color = "rgba(163,228,215,1)";
+export let control_ahead_color = "rgba(163,228,215,0.6)";
+export let control_back_color = "rgba(163,228,215,0.6)";
 export let path_fill_color = "rgba(0,0,0,1)";
 
 export class CurveNode {

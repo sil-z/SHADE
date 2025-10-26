@@ -66,10 +66,10 @@ let new_selected_temp: SVGSVGElement | null = null;
 
 let preview_curve: SVGSVGElement | null = null;
 let preview_curve_1: SVGSVGElement | null = null;
-let preview_color = "rgba(0, 255, 0, 0.6)";
+let preview_color = "rgba(163,228,215,0.6)";
 
-let main_node_shape: NodeShape = "square-blue-light";
-let control_node_shape: NodeShape = "circle-blue-light";
+let main_node_shape: NodeShape = "square-lime-light";
+let control_node_shape: NodeShape = "circle-lime-light";
 let main_node_shape_selected: NodeShape = "square-orange-light";
 
 let current_ch = "a";
@@ -239,7 +239,7 @@ function load_file() {
                     new_path.stroke_width = paths[path_id]["stroke_width"];
                     Object.keys(paths[path_id]["vertices"]).forEach(vertex_id => {
                         let vertex = paths[path_id]["vertices"][vertex_id];
-                        let new_vertex = createNodeAt(vertex["x"], canvas_size_height - vertex["y"], main_canvas!.value!, "square-blue-light", "test_id", "vertex", 4, 1, 0);
+                        let new_vertex = createNodeAt(vertex["x"], canvas_size_height - vertex["y"], main_canvas!.value!, "square-lime-light", "test_id", "vertex", 4, 1, 0);
 
                         let new_temp = curve_manager.add_node_by_curve({ main_node: new_vertex, type: "curve", x: vertex["x"], y: (canvas_size_height - vertex["y"]), nextOnCurve: null, lastOnCurve: last_on_curve_node, this_curve: new_path, node_id: String(node_id_i) });
                         node_id_i += 1;
@@ -900,6 +900,8 @@ onMounted(() => {
                 node_id_i += 1;
                 curve_manager.find_node_by_curve({ main_node: last_on_curve_node! })!.set_both_control({ one_control: new_curve_handle, control_mode: 2 });curve_manager.find_node_by_curve({ main_node: last_on_curve_node! })!.update_svg_curve(main_canvas!.value!, scale);
 
+                add_select(last_on_curve_node!);
+
             } else if(new_curve_handle !== null) {
                 // 已经创建了手柄点，更新其坐标
                 new_curve_handle.style.transform = `translate(${x - Number(new_curve_handle.dataset.size)}px, ${y - Number(new_curve_handle.dataset.size)}px)`;
@@ -1036,7 +1038,7 @@ function handle_mouse_down(e: MouseEvent) {
             if(current_curve === null)
                 current_curve = curve_manager.addCurve("a");
 
-            let new_curve_node = createNodeAt(x, y, main_canvas!.value!, "square-blue-light", "test_id", "vertex", 4, 1, 0);
+            let new_curve_node = createNodeAt(x, y, main_canvas!.value!, "square-lime-light", "test_id", "vertex", 4, 1, 0);
             
             curve_manager.add_node_by_curve({ main_node: new_curve_node, type: "curve", x: x / scale, y: y / scale, nextOnCurve: null, lastOnCurve: last_on_curve_node, this_curve: current_curve, node_id: String(node_id_i) })?.update_svg_curve(main_canvas!.value!, scale);
             node_id_i += 1;

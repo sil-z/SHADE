@@ -1,6 +1,11 @@
 
 export type NodeType = "move" | "line" | "curve" | null;
 
+export let path_stroke_color = "rgba(0, 255, 0, 0.8)";
+export let control_ahead_color = "rgba(0, 0, 255, 0.6)";
+export let control_back_color = "rgba(255, 0, 0, 0.6)";
+export let path_fill_color = "rgba(0,0,0,1)";
+
 export class CurveNode {
     main_node: SVGSVGElement;
     type: NodeType;
@@ -22,6 +27,7 @@ export class CurveNode {
     nextCurve: SVGSVGElement | null = null;
     control1_conn: SVGSVGElement | null = null;
     control2_conn: SVGSVGElement | null = null;
+    node_id: string;
 
     constructor(params: {
         main_node: SVGSVGElement;
@@ -30,6 +36,7 @@ export class CurveNode {
         y: number;
         nextOnCurve: CurveNode | null;
         lastOnCurve: CurveNode | null;
+        node_id: string;
     }) {
         this.main_node = params.main_node;
         this.type = params.type;
@@ -37,6 +44,7 @@ export class CurveNode {
         this.y = params.y;
         this.lastOnCurve = params.lastOnCurve;
         this.nextOnCurve = params.nextOnCurve;
+        this.node_id = params.node_id;
     }
 
     // 移动一个手柄时同步另一个
@@ -103,10 +111,8 @@ export class CurveNode {
     }
 
     update_svg_curve(container: HTMLElement, scale: number) {
+        let stroke_width = CurveManager.getInstance().findCurveByDom(this.main_node)!.stroke_width;
         if(this.control1 !== null) {
-            // const t_match_1 = get_transform_xy(this.main_node.style.transform), t_match_2 = get_transform_xy(this.control1.main_node.style.transform);
-            // const x1 = t_match_1!["x"] + parseFloat(this.main_node.dataset.size!), y1 = t_match_1!["y"] + parseFloat(this.main_node.dataset.size!), x2 = t_match_2!["x"] + parseFloat(this.control1.main_node.dataset.size!), y2 = t_match_2!["y"] + parseFloat(this.control1.main_node.dataset.size!);
-
             let x1 = this.x, y1 = this.y;
             let x2 = this.control1.x, y2 = this.control1.y;
 
@@ -114,7 +120,7 @@ export class CurveNode {
             x2 *= scale, y2 *= scale;
 
             if(this.control1_conn === null) {
-                this.control1_conn = createLineSVG([x1, y1], [x2, y2], 0.5, "rgba(0, 0, 255, 0.4)", container);
+                this.control1_conn = createLineSVG([x1, y1], [x2, y2], 0.5, control_ahead_color, container);
             } else {
                 this.control1_conn.firstElementChild!.setAttribute("x1", x1.toString());
                 this.control1_conn.firstElementChild!.setAttribute("y1", y1.toString());
@@ -124,8 +130,6 @@ export class CurveNode {
         }
 
         if(this.control2 !== null) {
-            // const t_match_1 = get_transform_xy(this.main_node.style.transform), t_match_2 = get_transform_xy(this.control2.main_node.style.transform);
-            // const x1 = t_match_1!["x"] + parseFloat(this.main_node.dataset.size!), y1 = t_match_1!["y"] + parseFloat(this.main_node.dataset.size!), x2 = t_match_2!["x"] + parseFloat(this.control2.main_node.dataset.size!), y2 = t_match_2!["y"] + parseFloat(this.control2.main_node.dataset.size!);
 
             let x1 = this.x, y1 = this.y;
             let x2 = this.control2.x, y2 = this.control2.y;
@@ -134,7 +138,7 @@ export class CurveNode {
             x2 *= scale, y2 *= scale;
 
             if(this.control2_conn === null) {
-                this.control2_conn = createLineSVG([x1, y1], [x2, y2], 0.5, "rgba(255, 0, 0, 0.4)", container);
+                this.control2_conn = createLineSVG([x1, y1], [x2, y2], 0.5, control_back_color, container);
             } else {
                 this.control2_conn.firstElementChild!.setAttribute("x1", x1.toString());
                 this.control2_conn.firstElementChild!.setAttribute("y1", y1.toString());
@@ -156,7 +160,7 @@ export class CurveNode {
             p3_x *= scale, p3_y *= scale;
 
             if(this.nextCurve === null) {
-                this.nextCurve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], 1, "black", container);
+                this.nextCurve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], stroke_width, path_stroke_color, container);
             } else {
                 const path = this.nextCurve.querySelector("path");
                 if(path) {
@@ -179,7 +183,7 @@ export class CurveNode {
             p3_x *= scale, p3_y *= scale;
 
             if(this.nextCurve === null) {
-                this.nextCurve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], 1, "black", container);
+                this.nextCurve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], stroke_width, path_stroke_color, container);
             } else {
                 const path = this.nextCurve.querySelector("path");
                 if(path) {
@@ -203,7 +207,7 @@ export class CurveNode {
             
 
             if(this.lastOnCurve.nextCurve === null) {
-                this.lastOnCurve.nextCurve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], 1, "black", container);
+                this.lastOnCurve.nextCurve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], stroke_width, path_stroke_color, container);
             } else {
                 const path = this.lastOnCurve.nextCurve.querySelector("path");
                 if(path) {
@@ -250,6 +254,7 @@ export class CurveNodeManager {
     path_d: string = "";
     curve: SVGSVGElement | null = null;
     closed: boolean = true;
+    stroke_width: number = 1;
 
     constructor(params: {
         id: string;
@@ -268,6 +273,7 @@ export class CurveNodeManager {
         y: number;
         nextOnCurve: CurveNode | null;
         lastOnCurve: CurveNode | null;
+        node_id: string;
     }): CurveNode | null {
         if(params.type === null) {
             if(params.nextOnCurve === null)
@@ -279,6 +285,7 @@ export class CurveNodeManager {
                 y: params.y,
                 nextOnCurve: params.nextOnCurve,
                 lastOnCurve: null,
+                node_id: params.node_id
             });
 
             if(node.nextOnCurve!.control1 === null)
@@ -286,6 +293,7 @@ export class CurveNodeManager {
             else
                 node.nextOnCurve!.control2 = node;
             this.domMap.set(node.main_node, node);
+            return node;
         } else {
             let last: CurveNode | null = params.lastOnCurve;
             // 如果 last 为 null，则自动找到链表尾部作为前继节点
@@ -308,6 +316,7 @@ export class CurveNodeManager {
                 y: params.y,
                 nextOnCurve: null,
                 lastOnCurve: last,
+                node_id: params.node_id
             });
 
             // 调整链表关系
@@ -327,9 +336,6 @@ export class CurveNodeManager {
                 this.endNode = node;
             return node;
         }
-
-        
-        return null;
     }
 
     /**
@@ -370,14 +376,14 @@ export class CurveNodeManager {
             let one_path_d = this_node.nextCurve.querySelector("path")!.getAttribute("d")!;
             if(this_node !== this.startNode)
                 one_path_d = removeLeadingM(one_path_d);
-            this_node.nextCurve.style.contentVisibility = "hidden";
+            // this_node.nextCurve.style.contentVisibility = "hidden";
             this.path_d += one_path_d;
             this.path_d += " ";
             this_node = this_node.nextOnCurve;
         }
 
         if(this.curve === null) {
-            this.curve = createPathSVG(this.path_d, 1, "black", true, "rgba(127,127,127,0.5)", container);
+            this.curve = createPathSVG(this.path_d, 0, "red", true, path_fill_color, container);
         } else {
             const path = this.curve.querySelector("path");
             if(path) {
@@ -455,10 +461,11 @@ export class CurveManager {
         nextOnCurve: SVGSVGElement | null;
         lastOnCurve: SVGSVGElement | null;
         this_curve: CurveNodeManager;
+        node_id: string;
     }): CurveNode | null {
 
         this.domMap.set(params.main_node, params.this_curve);
-        return params.this_curve.addNode({ main_node: params.main_node, type: params.type, x: params.x, y: params.y, nextOnCurve: params.nextOnCurve !== null ? params.this_curve.findByDom(params.nextOnCurve) : null, lastOnCurve: params.lastOnCurve !== null ? params.this_curve.findByDom(params.lastOnCurve) : null });
+        return params.this_curve.addNode({ main_node: params.main_node, type: params.type, x: params.x, y: params.y, nextOnCurve: params.nextOnCurve !== null ? params.this_curve.findByDom(params.nextOnCurve) : null, lastOnCurve: params.lastOnCurve !== null ? params.this_curve.findByDom(params.lastOnCurve) : null, node_id: params.node_id });
 
     }
 

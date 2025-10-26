@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { createBezierSVG, CurveManager, CurveNodeManager } from '../utils/Curve';
+import { createBezierSVG, CurveManager, CurveNodeManager, path_stroke_color, path_fill_color, control_ahead_color, control_back_color } from '../utils/Curve';
 
 const lock_guideline_button = ref<HTMLElement | null>(null);
 const lock_guideline_icon = ref<HTMLElement | null>(null);
@@ -65,6 +65,18 @@ let node_selecting: Set<SVGSVGElement> = new Set();
 let new_selected_temp: SVGSVGElement | null = null;
 
 let preview_curve: SVGSVGElement | null = null;
+let preview_curve_1: SVGSVGElement | null = null;
+let preview_color = "rgba(0, 255, 0, 0.6)";
+
+let main_node_shape: NodeShape = "square-blue-light";
+let control_node_shape: NodeShape = "circle-blue-light";
+let main_node_shape_selected: NodeShape = "square-orange-light";
+
+let current_ch = "a";
+
+let node_id_i = 0;
+let path_id_i = 0;
+let component_id_i = 0;
 
 type NodeShape =
     | "circle-blue-light"   | "square-blue-light"
@@ -205,6 +217,223 @@ function get_initial_settings()
     } else {
         offset.y = (main_canvas_large.value!.getBoundingClientRect().height) / 2;
     }
+
+    load_file();
+}
+
+function load_file() {
+    (async () => {
+        const result: string | null = await loadString("file.json");
+        if(result !== null) {
+            let obj = JSON.parse(result);
+            canvas_size_width = obj["canvas_size_width"] ?? 1000;
+            canvas_size_height = obj["canvas_size_height"] ?? 1000;
+            // scale = obj["editor_scale"] ?? 1;
+            // offset.x = obj["editor_offset_x"] ?? 0;
+            // offset.y = obj["editor_offset_y"] ?? 0;
+            Object.keys(obj["components"]).forEach(component_id => {
+                let paths = obj["components"][component_id]["paths"];
+                Object.keys(paths).forEach(path_id => {
+                    let new_path: CurveNodeManager = CurveManager.getInstance().addCurve(path_id);
+                    new_path.closed = paths[path_id]["fill"];
+                    new_path.stroke_width = paths[path_id]["stroke_width"];
+                    Object.keys(paths[path_id]["vertices"]).forEach(vertex_id => {
+                        let vertex = paths[path_id]["vertices"][vertex_id];
+                        let new_vertex = createNodeAt(vertex["x"], canvas_size_height - vertex["y"], main_canvas!.value!, "square-blue-light", "test_id", "vertex", 4, 1, 0);
+
+                        let new_temp = curve_manager.add_node_by_curve({ main_node: new_vertex, type: "curve", x: vertex["x"], y: (canvas_size_height - vertex["y"]), nextOnCurve: null, lastOnCurve: last_on_curve_node, this_curve: new_path, node_id: String(node_id_i) });
+                        node_id_i += 1;
+                        last_on_curve_node = new_vertex;
+
+                        if(vertex["control_1"]["active"]) {
+                            new_curve_handle = createNodeAt(vertex["control_1"]["x"], canvas_size_height - vertex["control_1"]["y"], main_canvas!.value!, control_node_shape, "test_id", "vertex", 4, 1, 0);
+                
+                            curve_manager.add_node_by_curve({ main_node: new_curve_handle, type: null, x: vertex["control_1"]["x"], y: canvas_size_height - vertex["control_1"]["y"], nextOnCurve: last_on_curve_node, lastOnCurve: null, this_curve: new_path, node_id: String(node_id_i) });
+                            node_id_i += 1;
+                        }
+
+                        if(vertex["control_2"]["active"]) {
+                            new_curve_handle = createNodeAt(vertex["control_2"]["x"], canvas_size_height - vertex["control_2"]["y"], main_canvas!.value!, control_node_shape, "test_id", "vertex", 4, 1, 0);
+                
+                            curve_manager.add_node_by_curve({ main_node: new_curve_handle, type: null, x: vertex["control_2"]["x"], y: canvas_size_height - vertex["control_2"]["y"], nextOnCurve: last_on_curve_node, lastOnCurve: null, this_curve: new_path, node_id: String(node_id_i) });
+                            node_id_i += 1;
+                        }
+
+                        new_temp?.update_svg_curve(main_canvas!.value!, scale);
+                    });
+                });
+            });
+        }
+
+        reset_curve_drawing();
+        update_canvas();
+        update_ruler();
+        update_node();
+    })();
+}
+
+function save_file() {
+    let file = {
+        "canvas_size_width": canvas_size_width,
+        "canvas_size_height": canvas_size_height,
+        "family_name": "default",
+        "basic_spacing": 1000,
+        "editor_scale": scale,
+        "editor_offset_x": offset.x,
+        "editor_offset_y": offset.y,
+        "editor_guideline_h": [
+            500
+        ],
+        "editor_guideline_v": [
+            500
+        ],
+        "editor_guideline_lock": false,
+        "editor_edit_mode": "pen",
+        "editor_cutting_board": [
+            "a"
+        ],
+        "editor_fill_color": path_fill_color,
+        "editor_stroke_color": path_stroke_color,
+        "ch": {
+
+        } as Record<string, any>,
+        "components": {
+
+        } as Record<string, any>
+    };
+
+    let component_id: string = "1";
+    let ch = "a";
+    file.ch[ch] = {
+        "variant": {
+
+        },
+        "spacing": 1,
+        "hooks_id": [
+
+        ],
+        "components": {
+
+        },
+        "editor_hide": false, "editor_lock": false
+    };
+    file.ch[ch].components[component_id] = {
+        "component_id": "1",
+        "transform": "none"
+    };
+    file.components[component_id] = {
+        "paths": {
+
+        } as Record<string, any>,
+        "editor_hide": false, "editor_lock": false,
+        "editor_selected": false,
+        "components": [
+
+        ]
+    };
+    let path_id_cnt = 0;
+    for(let curve of curve_manager.getCurves()) {
+        let path_id = String(path_id_cnt);
+        path_id_cnt += 1;
+        file.components[component_id].paths[path_id] = {
+            "fill": curve.closed,
+            "stroke_width": curve.stroke_width,
+            "render_mode": "auto",
+            "vertices": {
+
+            },
+            "editor_hide": false, "editor_lock": false,
+            "editor_selected": false
+        };
+        let this_node = curve.startNode;
+        while(this_node != null) {
+            file.components[component_id].paths[path_id].vertices[this_node.node_id] = {
+                "x": this_node.x,
+                "y": canvas_size_height - this_node.y,
+                "start": this_node === curve.startNode,
+                "end": this_node === curve.endNode,
+                "smooth": this_node.smooth,
+                "editor_selected": false, ////
+                "relate_last": this_node.node_id, "relate_next": this_node.node_id,
+                "control_1": {
+                    "active": this_node.control1 !== null,
+                    "x": this_node.control1?.x ?? this_node.x,
+                    "y": canvas_size_height - (this_node.control1?.y ?? this_node.y),
+                },
+                "control_2": {
+                    "active": this_node.control2 !== null,
+                    "x": this_node.control2?.x ?? this_node.x,
+                    "y": canvas_size_height - (this_node.control2?.y ?? this_node.y),
+                }
+            };
+
+            this_node = this_node.nextOnCurve;
+        }
+    }
+
+    return JSON.stringify(file, null, 4);
+}
+
+function download_file(content: string, filename: string) {
+    // 根据扩展名决定 MIME 类型
+    const ext = filename.split('.')?.pop()?.toLowerCase() ?? "txt";
+    let mimeType;
+
+    if (ext === "json") {
+        mimeType = "application/json;charset=utf-8";
+        // 若 content 是对象，自动格式化
+        if (typeof content === "object") {
+            content = JSON.stringify(content, null, 4);
+        }
+    } else if (ext === "svg") {
+        mimeType = "image/svg+xml;charset=utf-8";
+    } else {
+        mimeType = "application/octet-stream";
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+const DB_NAME = 'app_storage';
+const STORE_NAME = 'store';
+
+async function openDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveString(key: string, value: string): Promise<void> {
+    if (navigator.storage?.persist) await navigator.storage.persist();
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+}
+
+async function loadString(key: string): Promise<string | null> {
+    const db = await openDB();
+    const result = await new Promise<string | null>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return result;
 }
 
 // 切换辅助线锁定状态
@@ -391,7 +620,7 @@ function update_ruler_vertical() {
             const cy = x - 5;
 
             const text = document.createElementNS(svgNS, "text");
-            text.textContent = `${(1000 - j * step).toFixed(precision)}`;
+            text.textContent = `${(canvas_size_height - j * step).toFixed(precision)}`;
             text.setAttribute("x", String(cx));
             text.setAttribute("y", String(cy));
             text.setAttribute("font-size", "10px");
@@ -435,7 +664,7 @@ function update_ruler_vertical() {
             const cy = x - 5;
 
             const text = document.createElementNS(svgNS, "text");
-            text.textContent = `${(1000 - j * step).toFixed(precision)}`;
+            text.textContent = `${(canvas_size_height - j * step).toFixed(precision)}`;
             text.setAttribute("x", String(cx));
             text.setAttribute("y", String(cy));
             text.setAttribute("font-size", "10px");
@@ -515,19 +744,30 @@ function update_preview(e: WheelEvent | MouseEvent) {
         p2_x *= scale, p2_y *= scale;
         p3_x *= scale, p3_y *= scale;
 
+        let _p3_x = curve_manager.findCurveByDom(last_on_curve_node)!.startNode!.x, _p3_y = curve_manager.findCurveByDom(last_on_curve_node)!.startNode!.y;
+        let _p2_x = curve_manager.findCurveByDom(last_on_curve_node)!.startNode!.control2?.x ?? _p3_x, _p2_y = curve_manager.findCurveByDom(last_on_curve_node)!.startNode!.control2?.y ?? _p3_y;
+
+        _p2_x *= scale, _p2_y *= scale;
+        _p3_x *= scale, _p3_y *= scale;
+
 
         if(preview_curve === null) {
-            preview_curve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], 0.5, "rgba(0, 255, 0, 0.6)", main_canvas!.value!);
+            preview_curve = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [p2_x, p2_y], [p3_x, p3_y], 0.5, preview_color, main_canvas!.value!);
+            if(curve_manager.findCurveByDom(last_on_curve_node)!.closed)
+                preview_curve_1 = createBezierSVG([p0_x, p0_y], [p1_x, p1_y], [_p2_x, _p2_y], [_p3_x, _p3_y], 0.5, preview_color, main_canvas!.value!);
         } else {
             const d = `M ${p0_x},${p0_y} C ${p1_x},${p1_y} ${p2_x},${p2_y} ${p3_x},${p3_y}`;
+            const d1 = `M ${p0_x},${p0_y} C ${p1_x},${p1_y} ${_p2_x},${_p2_y} ${_p3_x},${_p3_y}`;
             preview_curve.firstElementChild!.setAttribute("d", d);
+            if(preview_curve_1 !== null)
+                preview_curve_1.firstElementChild!.setAttribute("d", d1);
         }
     }
 }
 
 function clear_select() {
-    let preset = presetMap["square-blue-light"];
-    let preset_control = presetMap["circle-blue-light"];
+    let preset = presetMap[main_node_shape];
+    let preset_control = presetMap[control_node_shape];
 
 
     for(const node of node_selecting) {
@@ -546,7 +786,7 @@ function clear_select() {
 function add_select(new_node: SVGSVGElement) {
     node_selecting.add(new_node);
                 
-    let preset = presetMap["square-orange-light"];
+    let preset = presetMap[main_node_shape_selected];
 
     new_node.firstElementChild!.setAttribute("stroke", preset.stroke);
     new_node.firstElementChild!.setAttribute("fill", preset.fill);
@@ -560,8 +800,8 @@ function add_select(new_node: SVGSVGElement) {
 function remove_select(old_node: SVGSVGElement) {
     node_selecting.delete(old_node);
 
-    let preset = presetMap["square-blue-light"];
-    let preset_control = presetMap["circle-blue-light"];
+    let preset = presetMap[main_node_shape];
+    let preset_control = presetMap[control_node_shape];
     old_node.firstElementChild!.setAttribute("stroke", preset.stroke);
     old_node.firstElementChild!.setAttribute("fill", preset.fill);
     const temp_node = curve_manager.find_node_by_curve({ main_node: old_node });
@@ -605,6 +845,7 @@ onMounted(() => {
             document.body.style.cursor = "default";
         } else if(e.button === 0) {
             preview_curve && (preview_curve.style.display = "inline");
+            preview_curve_1 && (preview_curve_1.style.display = "inline");
             update_preview(e);
 
             if(painting_handle === true) {
@@ -617,6 +858,10 @@ onMounted(() => {
                 // 抬起左键停止拖动正在拖动的点
                 dragging_node_b_ready = dragging_node_b = false;
             }
+
+            let file_str = save_file();
+            if(saveString("file.json", file_str) === null)
+                alert("Failed to cache data");
         }
     });
 
@@ -644,13 +889,17 @@ onMounted(() => {
             // 按下左键时移动，正在拖动手柄
             if(new_curve_handle === null && (Math.abs(x - painting_handle_start.x) > 1 || Math.abs(y - painting_handle_start.y) > 1)) {
                 // 还没有创建过手柄点，且值得创建
-                new_curve_handle = createNodeAt(x, y, main_canvas!.value!, "circle-blue-light", "test_id", "vertex", 4, 1, 0);
-                curve_manager.add_node_by_curve({ main_node: new_curve_handle, type: null, x: x / scale, y: y / scale, nextOnCurve: last_on_curve_node, lastOnCurve: null, this_curve: current_curve! });
+                new_curve_handle = createNodeAt(x, y, main_canvas!.value!, control_node_shape, "test_id", "vertex", 4, 1, 0);
+                
+                curve_manager.add_node_by_curve({ main_node: new_curve_handle, type: null, x: x / scale, y: y / scale, nextOnCurve: last_on_curve_node, lastOnCurve: null, this_curve: current_curve!, node_id: String(node_id_i) });
+                node_id_i += 1;
 
                 // 添加对称手柄
                 let other_x = 2 * curve_manager.find_node_by_curve({ main_node: last_on_curve_node! })!.x - x, other_y = 2 * curve_manager.find_node_by_curve({ main_node: last_on_curve_node! })!.y - y;
-                curve_manager.add_node_by_curve({ main_node: createNodeAt(other_x, other_y, main_canvas!.value!, "circle-blue-light", "test_id", "vertex", 4, 1, 0), type: null, x: other_x / scale, y: other_y / scale, nextOnCurve: last_on_curve_node, lastOnCurve: null, this_curve: current_curve!});
+                curve_manager.add_node_by_curve({ main_node: createNodeAt(other_x, other_y, main_canvas!.value!, control_node_shape, "test_id", "vertex", 4, 1, 0), type: null, x: other_x / scale, y: other_y / scale, nextOnCurve: last_on_curve_node, lastOnCurve: null, this_curve: current_curve!, node_id: String(node_id_i) });
+                node_id_i += 1;
                 curve_manager.find_node_by_curve({ main_node: last_on_curve_node! })!.set_both_control({ one_control: new_curve_handle, control_mode: 2 });curve_manager.find_node_by_curve({ main_node: last_on_curve_node! })!.update_svg_curve(main_canvas!.value!, scale);
+
             } else if(new_curve_handle !== null) {
                 // 已经创建了手柄点，更新其坐标
                 new_curve_handle.style.transform = `translate(${x - Number(new_curve_handle.dataset.size)}px, ${y - Number(new_curve_handle.dataset.size)}px)`;
@@ -705,70 +954,10 @@ onMounted(() => {
         if(e.ctrlKey) {
             // 按下 ctrl 且存在滚轮动作，缩放画布
             e.preventDefault();
-            const old_scale = scale;
-            let wheel_delta = e.deltaY < 0 ? 1.1 : 0.9;
-            let new_scale = Math.min(Math.max(scale * wheel_delta, scale_min), scale_max);
-            // let new_scale = scale * wheel_delta;
-
-            // wheel_delta = e.deltaY < 0 ? 0.01 : -0.01;
-            // new_scale = Math.min(Math.max(scale + wheel_delta, scale_min), scale_max);
-
-            if(new_scale == scale) {
-                return;
-            }
-
-            const x_new = x / scale * new_scale;
-            const y_new = y / scale * new_scale;
-            
-            offset = { x: offset.x * (old_scale / new_scale), y: offset.y * (old_scale / new_scale)};
-            scale = new_scale;
-
-            // update_canvas();
-            // update_ruler();
-            update_node();
-
-            offset = { x: offset.x + (x - x_new) / scale, y: offset.y + (y - y_new) / scale};
-
-            // update_canvas();
-            // update_ruler();
-            update_node();
-
-            localStorage.setItem("ss_board_scale", String(scale));
-            localStorage.setItem("ss_board_offset_x", String(offset.x));
-            localStorage.setItem("ss_board_offset_y", String(offset.y));
+            change_canvas_size(e.deltaY, x, y, false);
         } else if(e.altKey) {
-            x = canvas_size_width / 2 * scale, y = canvas_size_height / 2 * scale;
-                        e.preventDefault();
-            const old_scale = scale;
-            let wheel_delta = e.deltaY < 0 ? 1.1 : 0.9;
-            let new_scale = Math.min(Math.max(scale * wheel_delta, scale_min), scale_max);
-
-            // wheel_delta = e.deltaY < 0 ? 0.01 : -0.01;
-            // new_scale = Math.min(Math.max(scale + wheel_delta, scale_min), scale_max);
-
-            if(new_scale == scale) {
-                return;
-            }
-
-            const x_new = x / scale * new_scale;
-            const y_new = y / scale * new_scale;
-            
-            offset = { x: offset.x * (old_scale / new_scale), y: offset.y * (old_scale / new_scale)};
-            scale = new_scale;
-
-            // update_canvas();
-            // update_ruler();
-            update_node();
-
-            offset = { x: offset.x + (x - x_new) / scale, y: offset.y + (y - y_new) / scale};
-
-            // update_canvas();
-            // update_ruler();
-            update_node();
-
-            localStorage.setItem("ss_board_scale", String(scale));
-            localStorage.setItem("ss_board_offset_x", String(offset.x));
-            localStorage.setItem("ss_board_offset_y", String(offset.y));
+            e.preventDefault();
+            change_canvas_size(e.deltaY, x, y, true);
         } else {
 
         }
@@ -779,6 +968,9 @@ onMounted(() => {
     window.addEventListener("keydown", e => {
         if(e.key === "Enter" || e.key === "Escape") {
             reset_curve_drawing();
+        } else if(e.key === "Delete") {
+            console.log("FUCK");
+            
         }
     });
 
@@ -787,15 +979,52 @@ onMounted(() => {
     });
 
     curve_manager = CurveManager.getInstance();
-})
+});
 
 onBeforeUnmount(() => {
     cancelAnimationFrame(animationFrameId);
-})
+});
+
+function change_canvas_size(dy: number, x: number, y: number, fixed: boolean) {
+    if(fixed)
+        x = canvas_size_width / 2 * scale, y = canvas_size_height / 2 * scale;
+    let wheel_delta = dy < 0 ? 1.1 : 0.9;
+    const old_scale = scale;
+    let new_scale = Math.min(Math.max(scale * wheel_delta, scale_min), scale_max);
+    // let new_scale = scale * wheel_delta;
+
+    // wheel_delta = e.deltaY < 0 ? 0.01 : -0.01;
+    // new_scale = Math.min(Math.max(scale + wheel_delta, scale_min), scale_max);
+
+    if(new_scale == scale) {
+        return;
+    }
+
+    const x_new = x / scale * new_scale;
+    const y_new = y / scale * new_scale;
+    
+    offset = { x: offset.x * (old_scale / new_scale), y: offset.y * (old_scale / new_scale)};
+    scale = new_scale;
+
+    // update_canvas();
+    // update_ruler();
+    update_node();
+
+    offset = { x: offset.x + (x - x_new) / scale, y: offset.y + (y - y_new) / scale};
+
+    // update_canvas();
+    // update_ruler();
+    update_node();
+
+    localStorage.setItem("ss_board_scale", String(scale));
+    localStorage.setItem("ss_board_offset_x", String(offset.x));
+    localStorage.setItem("ss_board_offset_y", String(offset.y));
+}
 
 function handle_mouse_down(e: MouseEvent) {
     if(e.button === 0) {
         preview_curve && (preview_curve.style.display = "none");
+        preview_curve_1 && (preview_curve_1.style.display = "none");
         const target = e.target as HTMLElement;
         if(target.dataset.type !== "vertex") {
             // 在空白位置按下左键，创建节点
@@ -808,7 +1037,9 @@ function handle_mouse_down(e: MouseEvent) {
                 current_curve = curve_manager.addCurve("a");
 
             let new_curve_node = createNodeAt(x, y, main_canvas!.value!, "square-blue-light", "test_id", "vertex", 4, 1, 0);
-            curve_manager.add_node_by_curve({ main_node: new_curve_node, type: "curve", x: x / scale, y: y / scale, nextOnCurve: null, lastOnCurve: last_on_curve_node, this_curve: current_curve })?.update_svg_curve(main_canvas!.value!, scale);
+            
+            curve_manager.add_node_by_curve({ main_node: new_curve_node, type: "curve", x: x / scale, y: y / scale, nextOnCurve: null, lastOnCurve: last_on_curve_node, this_curve: current_curve, node_id: String(node_id_i) })?.update_svg_curve(main_canvas!.value!, scale);
+            node_id_i += 1;
 
             last_on_curve_node = new_curve_node;
             clear_select();
@@ -831,6 +1062,10 @@ function handle_mouse_down(e: MouseEvent) {
         
     } else if(e.button === 2) {
         reset_curve_drawing();
+        let file_str = save_file();
+        // download_file(file_str, "test.json");
+        if(saveString("file.json", file_str) === null)
+            alert("Failed to cache data");
     }
 }
 
@@ -839,6 +1074,10 @@ function reset_curve_drawing() {
     last_on_curve_node = null;
     preview_curve?.remove();
     preview_curve = null;
+    preview_curve_1?.remove();
+    preview_curve_1 = null;
+    path_id_i += 1;
+    new_curve_handle = null;
 }
 
 /**

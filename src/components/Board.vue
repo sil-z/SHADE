@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { createBezierSVG, CurveManager, CurveNodeManager, path_stroke_color, path_fill_color, control_ahead_color, control_back_color } from '../utils/Curve';
+import { createBezierSVG, CurveManager, CurveNodeManager, path_stroke_color, path_fill_color } from '../utils/Curve';
+import { writeD } from '../utils/FileResolve';
+import { matchNextCommand } from '../utils/FileResolve';
 
 const lock_guideline_button = ref<HTMLElement | null>(null);
 const lock_guideline_icon = ref<HTMLElement | null>(null);
@@ -72,11 +74,11 @@ let main_node_shape: NodeShape = "square-lime-light";
 let control_node_shape: NodeShape = "circle-lime-light";
 let main_node_shape_selected: NodeShape = "square-orange-light";
 
-let current_ch = "a";
+// let current_ch = "a";
 
 let node_id_i = 0;
 let path_id_i = 0;
-let component_id_i = 0;
+// let component_id_i = 0;
 
 type NodeShape =
     | "circle-blue-light"   | "square-blue-light"
@@ -972,7 +974,9 @@ onMounted(() => {
             reset_curve_drawing();
         } else if(e.key === "Delete") {
             console.log("FUCK");
-            
+            download_file("", "test.json");
+            matchNextCommand
+            writeD
         }
     });
 

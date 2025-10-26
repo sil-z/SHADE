@@ -1,4 +1,3 @@
-import { fa, tr } from "element-plus/es/locales.mjs";
 
 function matchNextNumber(str: string, startIndex: number) {
     const regex = /[+-]?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?/;
@@ -22,7 +21,7 @@ function matchNextCommandLetter(str: string, startIndex: number) {
     return { str: matchedCmd, end: matchEnd };
 }
 
-function writeD(obj: any) {
+export function writeD(obj: any) {
     let res_str = [];
     for(let cmd of obj) {
         let cl = cmd.cl;
@@ -41,7 +40,7 @@ function writeD(obj: any) {
     return res_str.join();
 }
 
-function matchNextCommand(str: string, startIndex: number): any {
+export function matchNextCommand(str: string, startIndex: number): any {
     let res;
     const match_1 = matchNextCommandLetter(str, startIndex);
     if(match_1 === null)
